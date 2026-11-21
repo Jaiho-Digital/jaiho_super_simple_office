@@ -99,7 +99,7 @@ Jaiho-Super-Simple-Office/
 # Jaiho Super Simple Office
 
 > **Everything you need. Nothing you don't.**  
-> A local-first, distraction-free suite of 13 lightweight Windows desktop tools + 1 unified launcher crafted by **Jaiho Digital**.
+> A local-first, distraction-free suite of 14 lightweight Windows desktop tools + 1 unified launcher crafted by **Jaiho Digital**.
 
 ---
 
@@ -141,7 +141,7 @@ We are building and shipping the suite sequentially. Status legend:
 | 2 | **SimpleUnits** | `SimpleUnits.exe` | Precision unit converter across 13 physical & digital categories with instant search, pinned pairs, and equivalence tables | **Available** |
 | 3 | **SimpleNotes** | `SimpleNotes.exe` | Distraction-free Markdown notebook with SQLite FTS5 full-text search, tags, pinning, live preview, and `.md`/`.txt` export | **Available** |
 | 4 | **SimpleFocus** | `SimpleFocus.exe` | Minimalist Braun-inspired Pomodoro timer with 4 built-in acoustic chimes, custom `.wav` alarm import, continuous alarm stop, and background system tray mode | **Available** |
-| 5 | **SimpleTasks** | `SimpleTasks.exe` | Keyboard-first task manager with lists, due dates, priorities, and subtasks | **In Progress** |
+| 5 | **SimpleTasks** | `SimpleTasks.exe` | Keyboard-first task manager with lists, due dates, priorities, and subtasks | **Available** |
 | 6 | **SimpleCalendar** | `SimpleCalendar.exe` | Local offline schedule & event planner with `.ics` import/export | Planned (Phase 2) |
 | 7 | **SimpleWriter** | `SimpleWriter.exe` | Clean rich-text & document processor with `.docx`, `.md`, and `.pdf` export | Planned (Phase 3) |
 | 8 | **SimpleSheets** | `SimpleSheets.exe` | Fast spreadsheet & CSV grid with formula evaluation and `.xlsx` support | Planned (Phase 3) |
@@ -150,6 +150,7 @@ We are building and shipping the suite sequentially. Status legend:
 | 11 | **SimpleScan** | `SimpleScan.exe` | Document scanner & image deskew/enhancement utility for clean multi-page PDFs | Planned (Phase 4) |
 | 12 | **SimpleConvert** | `SimpleConvert.exe` | Offline batch format converter for documents, images, and structured data | Planned (Phase 4) |
 | 13 | **SimpleOCR** | `SimpleOCR.exe` | Offline optical character recognition to extract searchable text from images & PDFs | Planned (Phase 4) |
+| 14 | **SimpleChat** | SimpleChat.exe | Offline same-network (LAN) internal chat with 1-on-1 messaging, group rooms, and direct file sharing | Planned (Phase 5) |
 
 ---
 
@@ -187,6 +188,7 @@ python -m apps.simple_calculator.main
 python -m apps.simple_units.main
 python -m apps.simple_notes.main
 python -m apps.simple_focus.main
+python -m apps.simple_tasks.main
 ```
 #### 4. Package Standalone Windows .exe Bundles
 ```
@@ -212,7 +214,7 @@ jaiho-super-simple-office/
 │   ├── simple_calculator/  # AST-safe standard & scientific calculator
 │   ├── simple_units/       # 13-category precision unit converter
 │   ├── simple_notes/       # SQLite FTS5 Markdown notebook
-|   ├── simple_tasks/       # Local SQLite task & subtask manager       
+|   ├── simple_tasks/       # Clean single-card task checklist      
 │   └── simple_focus/       # Braun-inspired Pomodoro & multi-sound alarm timer
 ├── core/                   # Shared foundation used by all 13 apps & launcher
 │   ├── database/           # Isolated SQLite WAL manager, migrations & hot backups
