@@ -6,21 +6,28 @@ import logging
 import sys
 from collections.abc import Callable
 
-from PySide6.QtCore import Qt, QTimer, QUrl
+from PySide6.QtCore import QSize, Qt, QTimer, QUrl
 from PySide6.QtGui import (
     QAction,
+    QActionGroup,
     QCloseEvent,
+    QColor,
     QDesktopServices,
     QGuiApplication,
     QIcon,
     QKeySequence,
+    QShortcut,
 )
 from PySide6.QtWidgets import (
     QApplication,
+    QColorDialog,
+    QFrame,
+    QHBoxLayout,
     QLabel,
     QMainWindow,
     QMenu,
-    QStatusBar,
+    QPushButton,
+    QVBoxLayout,
     QWidget,
 )
 
@@ -28,7 +35,9 @@ from core.logging.logger import install_exception_hooks, setup_logging
 from core.notifications.notifier import NotificationLevel, NotificationManager
 from core.settings.settings_manager import SettingsManager
 from core.themes.theme_manager import ThemeManager
+from core.themes.tokens import BUILT_IN_THEMES
 from core.ui.dialogs import show_about_dialog, show_error_dialog
+from core.ui.icons import get_lucide_icon
 from core.ui.toast import ToastManager
 from core.utilities.paths import get_logs_dir, get_resource_path
 from core.version import ORGANIZATION_NAME, SUITE_NAME, SUITE_VERSION, get_app_metadata
@@ -37,7 +46,7 @@ logger = logging.getLogger(__name__)
 
 
 class BaseWindow(QMainWindow):
-    """Base QMainWindow providing consistent menus, theme switching, geometry persistence, and toasts."""
+    """Base QMainWindow with Soft Modern Pastel header, 4-theme switcher, geometry memory, and toasts."""
 
     def __init__(
         self,
@@ -53,6 +62,7 @@ class BaseWindow(QMainWindow):
         self.app_id = app_id
         self.meta = get_app_metadata(app_id)
         self._window_ready: bool = False
+        self._active_content: QWidget | None = None
 
         self.settings = settings or SettingsManager(app_id)
         self.theme_manager = theme_manager or ThemeManager(settings=self.settings)
@@ -60,96 +70,248 @@ class BaseWindow(QMainWindow):
 
         self.setWindowTitle(self.meta.display_name)
         self.setMinimumSize(min_width, min_height)
-        self._apply_window_icon()
+        self._app_icon = self._load_window_icon()
+        if not self._app_icon.isNull():
+            self.setWindowIcon(self._app_icon)
 
         # In-app toast stack anchored to this window
         self.toasts = ToastManager(host=self, tokens=self.theme_manager.tokens)
         self.notifier.notification_dispatched.connect(self._on_notification_dispatched)
         self.theme_manager.theme_changed.connect(self._on_theme_changed)
 
-        # Standard menus and status bar
-        self._init_menus()
-        self._init_status_bar()
+        # Build modern integrated shell (replaces old grey Windows menu/status bars)
+        self._build_modern_shell()
+        self._init_actions_and_shortcuts()
 
-        # Apply active theme and restore saved window geometry
+        # Apply active pastel theme and restore saved window geometry
         self.theme_manager.apply_theme(persist=False)
+        self._refresh_header_chrome()
         self._restore_window_geometry()
         self.settings.record_app_launch(self.app_id)
         self._window_ready = True
 
-    def _apply_window_icon(self) -> None:
-        """Load per-app icon if available, falling back to suite icon."""
-        for candidate in (f"icons/{self.app_id}.ico", "icons/jaiho_office.ico"):
+    def _load_window_icon(self) -> QIcon:
+        """Load per-app SVG/ICO icon if available, falling back to suite icon."""
+        for candidate in (
+            f"icons/{self.app_id}.svg",
+            f"icons/{self.app_id}.ico",
+            "icons/jaiho_office.svg",
+            "icons/jaiho_office.ico",
+        ):
             icon_path = get_resource_path(candidate)
             if icon_path.exists():
-                self.setWindowIcon(QIcon(str(icon_path)))
-                return
+                return QIcon(str(icon_path))
+        return QIcon()
 
-    def _init_menus(self) -> None:
-        """Create standard File, View, and Help menus that subclasses can extend."""
-        menubar = self.menuBar()
+    def _build_modern_shell(self) -> None:
+        """Create the top integrated app header and content host container."""
+        self._shell_widget = QWidget(self)
+        self._shell_widget.setObjectName("windowShell")
+        self._shell_widget.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        shell_layout = QVBoxLayout(self._shell_widget)
+        shell_layout.setContentsMargins(0, 0, 0, 0)
+        shell_layout.setSpacing(0)
 
-        self.file_menu: QMenu = menubar.addMenu("&File")
-        self.exit_action = QAction("E&xit", self)
-        self.exit_action.setShortcut(QKeySequence.StandardKey.Quit)
-        self.exit_action.setStatusTip(f"Close {self.meta.display_name}")
-        self.exit_action.triggered.connect(self.close)
-        self.file_menu.addAction(self.exit_action)
+        # Integrated Soft Modern Pastel Header Bar
+        self._header_bar = QFrame(self._shell_widget)
+        self._header_bar.setProperty("surface", "app-header")
+        self._header_bar.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self._header_bar.setFixedHeight(48)
 
-        self.view_menu: QMenu = menubar.addMenu("&View")
-        self.toggle_theme_action = QAction("Toggle Light / Dark Theme", self)
+        header_layout = QHBoxLayout(self._header_bar)
+        header_layout.setContentsMargins(16, 6, 14, 6)
+        header_layout.setSpacing(10)
+
+        # App Icon Emblem
+        self._header_icon_lbl = QLabel(self._header_bar)
+        self._header_icon_lbl.setFixedSize(24, 24)
+        if not self._app_icon.isNull():
+            self._header_icon_lbl.setPixmap(self._app_icon.pixmap(QSize(24, 24)))
+        header_layout.addWidget(self._header_icon_lbl)
+
+        # Clean App Title
+        self._header_title_lbl = QLabel(self.meta.display_name, self._header_bar)
+        self._header_title_lbl.setProperty("role", "app-title")
+        header_layout.addWidget(self._header_title_lbl)
+
+        # Transient subtle status pill (replaces old bottom Windows status bar)
+        self._transient_status_lbl = QLabel("", self._header_bar)
+        self._transient_status_lbl.setProperty("role", "caption")
+        self._transient_status_lbl.setVisible(False)
+        header_layout.addWidget(self._transient_status_lbl)
+
+        self._status_clear_timer = QTimer(self)
+        self._status_clear_timer.setSingleShot(True)
+        self._status_clear_timer.timeout.connect(lambda: self._transient_status_lbl.setVisible(False))
+
+        header_layout.addStretch(1)
+
+        # Extensible slot where child apps can mount compact mode tabs or toolbar pills
+        self.header_actions_layout = QHBoxLayout()
+        self.header_actions_layout.setContentsMargins(0, 0, 0, 0)
+        self.header_actions_layout.setSpacing(6)
+        header_layout.addLayout(self.header_actions_layout)
+
+        # Theme & Pastel Palette Switcher Button
+        self._theme_btn = QPushButton("Lavender Dream", self._header_bar)
+        self._theme_btn.setProperty("variant", "ghost")
+        self._theme_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._theme_btn.setToolTip("Switch pastel theme or customize accent color (Ctrl+Shift+T)")
+        self._theme_btn.setStyleSheet("padding: 5px 10px; font-size: 12px;")
+        self._theme_menu = QMenu(self._theme_btn)
+        self._theme_btn.setMenu(self._theme_menu)
+        self._theme_btn.setProperty("has_menu", True)
+        header_layout.addWidget(self._theme_btn)
+
+        # Minimal Overflow Menu Button (•••)
+        self._more_btn = QPushButton("", self._header_bar)
+        self._more_btn.setProperty("variant", "ghost")
+        self._more_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._more_btn.setFixedSize(30, 30)
+        self._more_btn.setToolTip("Window & application options")
+        self._more_btn.setStyleSheet("padding: 0px;")
+        self._more_menu = QMenu(self._more_btn)
+        self._more_btn.setMenu(self._more_menu)
+        header_layout.addWidget(self._more_btn)
+
+        shell_layout.addWidget(self._header_bar)
+
+        # Content Host where subclass central widgets live
+        self._content_host = QWidget(self._shell_widget)
+        self._content_host.setObjectName("contentHost")
+        self._content_host.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self._content_host_layout = QVBoxLayout(self._content_host)
+        self._content_host_layout.setContentsMargins(0, 0, 0, 0)
+        self._content_host_layout.setSpacing(0)
+        shell_layout.addWidget(self._content_host, 1)
+
+        super().setCentralWidget(self._shell_widget)
+
+    def setCentralWidget(self, widget: QWidget | None) -> None:  # noqa: N802
+        """Mount `widget` inside the modern shell below the integrated pastel header."""
+        if self._active_content is not None:
+            self._content_host_layout.removeWidget(self._active_content)
+            self._active_content.setParent(None)
+            self._active_content = None
+
+        if widget is not None:
+            self._active_content = widget
+            self._content_host_layout.addWidget(widget, 1)
+
+    def _init_actions_and_shortcuts(self) -> None:
+        """Configure theme menu, overflow actions, and global keyboard shortcuts."""
+        # Populate 4 Built-in Pastel Themes + Custom Accent Picker
+        self._theme_action_group = QActionGroup(self)
+        self._theme_action_group.setExclusive(True)
+        self._theme_actions: dict[str, QAction] = {}
+
+        for theme_id, tokens in BUILT_IN_THEMES.items():
+            act = QAction(tokens.display_name, self)
+            act.setCheckable(True)
+            act.setChecked(theme_id == self.theme_manager.active_theme_id)
+            act.triggered.connect(lambda _=False, tid=theme_id: self.select_theme(tid))
+            self._theme_action_group.addAction(act)
+            self._theme_menu.addAction(act)
+            self._theme_actions[theme_id] = act
+
+        self._theme_menu.addSeparator()
+
+        self.custom_accent_action = QAction("Custom Accent Color...", self)
+        self.custom_accent_action.triggered.connect(self.choose_custom_accent)
+        self._theme_menu.addAction(self.custom_accent_action)
+
+        self.reset_accent_action = QAction("Reset Theme Default Accent", self)
+        self.reset_accent_action.triggered.connect(self.reset_custom_accent)
+        self._theme_menu.addAction(self.reset_accent_action)
+
+        # Populate Overflow Menu
+        self.toggle_theme_action = QAction("Toggle Light / Dark Mode", self)
         self.toggle_theme_action.setShortcut(QKeySequence("Ctrl+Shift+T"))
-        self.toggle_theme_action.setStatusTip("Switch between Light Mode and Dark Mode")
         self.toggle_theme_action.triggered.connect(self.toggle_theme)
-        self.view_menu.addAction(self.toggle_theme_action)
+        self._more_menu.addAction(self.toggle_theme_action)
 
         self.reset_geometry_action = QAction("Reset Window Size", self)
-        self.reset_geometry_action.setStatusTip("Restore default window dimensions")
         self.reset_geometry_action.triggered.connect(self.reset_window_geometry)
-        self.view_menu.addAction(self.reset_geometry_action)
+        self._more_menu.addAction(self.reset_geometry_action)
 
-        self.help_menu: QMenu = menubar.addMenu("&Help")
         self.open_logs_action = QAction("Open Logs Folder", self)
         self.open_logs_action.triggered.connect(
             lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(str(get_logs_dir())))
         )
-        self.help_menu.addAction(self.open_logs_action)
-        self.help_menu.addSeparator()
+        self._more_menu.addAction(self.open_logs_action)
+
+        self._more_menu.addSeparator()
 
         self.about_action = QAction(f"About {self.meta.display_name}", self)
         self.about_action.triggered.connect(lambda: show_about_dialog(self, self.app_id))
-        self.help_menu.addAction(self.about_action)
+        self._more_menu.addAction(self.about_action)
 
-    def _init_status_bar(self) -> None:
-        """Create a clean status bar with a persistent right-aligned theme indicator."""
-        status = QStatusBar(self)
-        self.setStatusBar(status)
+        self.exit_action = QAction("Exit", self)
+        self.exit_action.setShortcut(QKeySequence.StandardKey.Quit)
+        self.exit_action.triggered.connect(self.close)
+        self._more_menu.addAction(self.exit_action)
 
-        self._theme_status_label = QLabel(self)
-        self._theme_status_label.setProperty("role", "caption")
-        self._theme_status_label.setContentsMargins(6, 0, 8, 0)
-        status.addPermanentWidget(self._theme_status_label)
-        self._update_theme_indicator(self.theme_manager.current_theme)
+        # Ensure shortcuts trigger even without a traditional QMenuBar
+        QShortcut(QKeySequence("Ctrl+Shift+T"), self).activated.connect(self.toggle_theme)
 
-        status.showMessage("Ready")
+    def _refresh_header_chrome(self) -> None:
+        """Update theme button label, Lucide icons, and checked theme radio item."""
+        tokens = self.theme_manager.tokens
+        self._theme_btn.setText(tokens.display_name)
+        self._theme_btn.setIcon(
+            get_lucide_icon("palette", color=tokens.accent_primary, size=14)
+        )
+        self._theme_btn.setIconSize(QSize(14, 14))
 
-    def set_status_message(self, message: str, timeout_ms: int = 0) -> None:
-        """Update the left status bar text."""
-        self.statusBar().showMessage(message, max(0, int(timeout_ms)))
+        self._more_btn.setIcon(
+            get_lucide_icon("more-horizontal", color=tokens.text_secondary, size=16)
+        )
+        self._more_btn.setIconSize(QSize(16, 16))
+
+        for tid, act in self._theme_actions.items():
+            act.setChecked(tid == self.theme_manager.active_theme_id)
+        self.reset_accent_action.setEnabled(bool(self.theme_manager.custom_accent))
+
+    def set_status_message(self, message: str, timeout_ms: int = 2400) -> None:
+        """Show a subtle transient status pill in the header bar."""
+        cleaned = message.strip()
+        if not cleaned or cleaned.lower() == "ready":
+            self._transient_status_lbl.setVisible(False)
+            return
+
+        self._transient_status_lbl.setText(f"•  {cleaned}")
+        self._transient_status_lbl.setVisible(True)
+        duration = timeout_ms if timeout_ms > 0 else 2600
+        self._status_clear_timer.start(duration)
+
+    def select_theme(self, theme_id: str) -> None:
+        """Apply one of the 4 built-in pastel themes and persist user choice."""
+        tokens = self.theme_manager.set_theme(theme_id, persist=True)
+        self.set_status_message(f"{tokens.display_name} theme", timeout_ms=2200)
+
+    def choose_custom_accent(self) -> None:
+        """Open a color picker to customize the primary accent across the active theme."""
+        initial = QColor(self.theme_manager.tokens.accent_primary)
+        chosen = QColorDialog.getColor(initial, self, "Choose Custom Accent Color")
+        if chosen.isValid():
+            self.theme_manager.set_custom_accent(chosen.name(), persist=True)
+            self.set_status_message(f"Accent updated ({chosen.name().upper()})", timeout_ms=2400)
+
+    def reset_custom_accent(self) -> None:
+        """Restore the active theme's default pastel accent color."""
+        self.theme_manager.set_custom_accent(None, persist=True)
+        self.set_status_message("Restored default theme accent", timeout_ms=2200)
 
     def toggle_theme(self) -> None:
-        """Toggle between Light and Dark themes across the active application."""
+        """Toggle between Light (Lavender Dream) and Dark (Midnight Orchid)."""
         tokens = self.theme_manager.toggle_theme(persist=True)
-        self.set_status_message(f"Switched to {tokens.name.title()} theme", timeout_ms=2500)
+        self.set_status_message(f"{tokens.display_name} theme", timeout_ms=2200)
 
     def _on_theme_changed(self, theme_name: str) -> None:
         self.toasts.set_tokens(self.theme_manager.tokens)
-        self._update_theme_indicator(theme_name)
+        self._refresh_header_chrome()
         if self._window_ready:
             self.on_theme_updated(theme_name)
-
-    def _update_theme_indicator(self, theme_name: str) -> None:
-        self._theme_status_label.setText(f"Theme: {theme_name.title()}")
 
     def on_theme_updated(self, theme_name: str) -> None:
         """Hook for subclasses (e.g., custom canvases/charts) to redraw on theme change."""
@@ -178,8 +340,8 @@ class BaseWindow(QMainWindow):
     def _restore_window_geometry(self) -> None:
         """Restore window dimensions and position while ensuring visibility on active screens."""
         geom = self.settings.get_window_geometry()
-        width = max(self.minimumWidth(), int(geom.get("width", 1100)))
-        height = max(self.minimumHeight(), int(geom.get("height", 720)))
+        width = max(self.minimumWidth(), int(geom.get("width", 1040)))
+        height = max(self.minimumHeight(), int(geom.get("height", 680)))
         self.resize(width, height)
 
         saved_x = geom.get("x")
@@ -204,9 +366,9 @@ class BaseWindow(QMainWindow):
         return False
 
     def reset_window_geometry(self) -> None:
-        """Reset window to standard 1100x720 dimensions centered on the primary screen."""
+        """Reset window to standard dimensions centered on the primary screen."""
         self.showNormal()
-        self.resize(max(self.minimumWidth(), 1100), max(self.minimumHeight(), 720))
+        self.resize(max(self.minimumWidth(), 1040), max(self.minimumHeight(), 680))
         primary = QGuiApplication.primaryScreen()
         if primary is not None:
             center = primary.availableGeometry().center()
