@@ -1,11 +1,11 @@
-"""SimpleCalculator — Standard & scientific desktop calculator for Jaiho Super Simple Office."""
+"""SimpleCalculator — Soft Modern Pastel standard & scientific calculator."""
 
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import QEasingCurve, QPropertyAnimation, QSize, Qt, QTimer
 from PySide6.QtGui import QKeyEvent, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
@@ -32,8 +32,10 @@ from apps.simple_calculator.engine import (
 )
 from core.notifications.notifier import NotificationLevel
 from core.ui.base_window import BaseWindow, bootstrap_application
+from core.ui.icons import get_lucide_icon
 from core.ui.widgets import (
     CardFrame,
+    EmptyStateWidget,
     HorizontalDivider,
     SectionHeader,
     StatusBadge,
@@ -44,6 +46,7 @@ logger = logging.getLogger(__name__)
 
 APP_ID = "simple_calculator"
 _MAX_HISTORY_ITEMS = 100
+_TAPE_EXPANDED_WIDTH = 290
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,10 +60,10 @@ class TapeEntry:
 
 
 class SimpleCalculatorWindow(BaseWindow):
-    """Main window for SimpleCalculator with Standard/Scientific modes and history tape."""
+    """Main window for SimpleCalculator with Soft Modern Pastel aesthetic and collapsible tape."""
 
     def __init__(self) -> None:
-        super().__init__(app_id=APP_ID, min_width=780, min_height=580)
+        super().__init__(app_id=APP_ID, min_width=460, min_height=610)
         self.engine = MathEngine()
         self._memory_value: float = 0.0
         self._has_memory: bool = False
@@ -68,129 +71,174 @@ class SimpleCalculatorWindow(BaseWindow):
         self._just_evaluated: bool = False
         self._last_formatted_result: str = "0"
         self._tape_entries: list[TapeEntry] = []
+        self._tape_visible: bool = bool(self.settings.get("tape_visible", False))
 
-        # Restore persisted calculator preferences
+        if self.settings.get("window_width") is None:
+            self.resize(820 if self._tape_visible else 500, 670)
+
         saved_angle = str(self.settings.get("angle_mode", AngleMode.DEG.value)).upper()
         self.engine.angle_mode = (
             AngleMode.RAD if saved_angle == AngleMode.RAD.value else AngleMode.DEG
         )
         saved_mode = str(self.settings.get("calc_mode", "scientific")).lower()
 
+        self._build_header_controls()
         self._build_workspace()
         self._bind_shortcuts()
         self._restore_history_from_settings()
-        self._set_calculator_mode(saved_mode if saved_mode in {"standard", "scientific"} else "scientific")
+
+        self._set_calculator_mode(
+            saved_mode if saved_mode in {"standard", "scientific"} else "scientific"
+        )
         self._sync_angle_ui()
         self._sync_memory_ui()
+        self._apply_tape_drawer_state(animate=False)
+        self._refresh_dynamic_icons()
+
+    def _build_header_controls(self) -> None:
+        """Mount Standard/Scientific segmented switcher and Tape drawer toggle in header bar."""
+        mode_pill = QWidget(self)
+        mode_layout = QHBoxLayout(mode_pill)
+        mode_layout.setContentsMargins(0, 0, 0, 0)
+        mode_layout.setSpacing(4)
+
+        self._mode_group = QButtonGroup(self)
+        self._mode_group.setExclusive(True)
+
+        self._std_mode_btn = QPushButton("Standard", mode_pill)
+        self._std_mode_btn.setProperty("variant", "segmented")
+        self._std_mode_btn.setCheckable(True)
+        self._std_mode_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._std_mode_btn.setStyleSheet("padding: 4px 11px; font-size: 12px;")
+        self._std_mode_btn.clicked.connect(lambda: self._set_calculator_mode("standard"))
+
+        self._sci_mode_btn = QPushButton("Scientific", mode_pill)
+        self._sci_mode_btn.setProperty("variant", "segmented")
+        self._sci_mode_btn.setCheckable(True)
+        self._sci_mode_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._sci_mode_btn.setStyleSheet("padding: 4px 11px; font-size: 12px;")
+        self._sci_mode_btn.clicked.connect(lambda: self._set_calculator_mode("scientific"))
+
+        self._mode_group.addButton(self._std_mode_btn)
+        self._mode_group.addButton(self._sci_mode_btn)
+        mode_layout.addWidget(self._std_mode_btn)
+        mode_layout.addWidget(self._sci_mode_btn)
+
+        self.header_actions_layout.addWidget(mode_pill)
+
+        self._tape_toggle_btn = QPushButton("Tape", self)
+        self._tape_toggle_btn.setProperty("variant", "segmented")
+        self._tape_toggle_btn.setCheckable(True)
+        self._tape_toggle_btn.setChecked(self._tape_visible)
+        self._tape_toggle_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._tape_toggle_btn.setToolTip("Show or hide calculation history tape (Ctrl+H)")
+        self._tape_toggle_btn.setStyleSheet("padding: 4px 11px; font-size: 12px;")
+        self._tape_toggle_btn.clicked.connect(self._toggle_tape_drawer)
+        self.header_actions_layout.addWidget(self._tape_toggle_btn)
 
     def _build_workspace(self) -> None:
         central = QWidget(self)
         self.setCentralWidget(central)
 
         root = QHBoxLayout(central)
-        root.setContentsMargins(18, 16, 18, 16)
+        root.setContentsMargins(20, 18, 20, 20)
         root.setSpacing(16)
 
         # ==============================================================
-        # Left Column: Tactile Calculator Instrument Console
+        # Primary Instrument Card (Snow Surface on Warm Canvas)
         # ==============================================================
-        console_col = QVBoxLayout()
-        console_col.setContentsMargins(0, 0, 0, 0)
-        console_col.setSpacing(12)
+        calc_card = CardFrame(padding=20, spacing=14, parent=central)
+        calc_card.setMinimumWidth(410)
 
-        # --- Top Mode & Telemetry Strip ---
-        top_strip = QHBoxLayout()
-        top_strip.setSpacing(8)
-
-        self._mode_group = QButtonGroup(self)
-        self._mode_group.setExclusive(True)
-
-        self._std_mode_btn = QPushButton("Standard", central)
-        self._std_mode_btn.setProperty("variant", "segmented")
-        self._std_mode_btn.setCheckable(True)
-        self._std_mode_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._std_mode_btn.clicked.connect(lambda: self._set_calculator_mode("standard"))
-
-        self._sci_mode_btn = QPushButton("Scientific", central)
-        self._sci_mode_btn.setProperty("variant", "segmented")
-        self._sci_mode_btn.setCheckable(True)
-        self._sci_mode_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._sci_mode_btn.clicked.connect(lambda: self._set_calculator_mode("scientific"))
-
-        self._mode_group.addButton(self._std_mode_btn)
-        self._mode_group.addButton(self._sci_mode_btn)
-        top_strip.addWidget(self._std_mode_btn)
-        top_strip.addWidget(self._sci_mode_btn)
-
-        top_strip.addStretch(1)
-
-        self._angle_btn = QPushButton("DEG", central)
-        self._angle_btn.setProperty("variant", "segmented")
-        self._angle_btn.setCheckable(True)
-        self._angle_btn.setToolTip("Toggle trigonometric angle unit between Degrees (DEG) and Radians (RAD)")
-        self._angle_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._angle_btn.clicked.connect(self._toggle_angle_mode)
-        top_strip.addWidget(self._angle_btn)
-
-        self._mem_badge = StatusBadge("M", variant="info", parent=central)
-        self._mem_badge.setToolTip("Memory register contains a stored value")
-        top_strip.addWidget(self._mem_badge)
-
-        copy_btn = make_button(
-            text="Copy",
-            variant="ghost",
-            tooltip="Copy current result to clipboard (Ctrl+C)",
-            on_click=self._copy_result,
-            parent=central,
-        )
-        top_strip.addWidget(copy_btn)
-
-        console_col.addLayout(top_strip)
-
-        # --- Recessed LCD-Inspired Readout Well ---
-        display_well = QFrame(central)
+        # --- Recessed Pastel Readout Well ---
+        display_well = QFrame(calc_card)
         display_well.setProperty("surface", "recessed")
         display_well.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         display_layout = QVBoxLayout(display_well)
         display_layout.setContentsMargins(16, 12, 16, 14)
         display_layout.setSpacing(6)
 
-        # Breadcrumb / previous calculation line
+        # Top telemetry row inside display well (DEG/RAD pill, Memory badge, Copy button)
+        telemetry_row = QHBoxLayout()
+        telemetry_row.setSpacing(6)
+
+        self._angle_btn = QPushButton("DEG", display_well)
+        self._angle_btn.setProperty("variant", "segmented")
+        self._angle_btn.setCheckable(True)
+        self._angle_btn.setToolTip("Switch trigonometry angle unit between Degrees (DEG) and Radians (RAD)")
+        self._angle_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._angle_btn.setStyleSheet("padding: 3px 10px; font-size: 11px;")
+        self._angle_btn.clicked.connect(self._toggle_angle_mode)
+        telemetry_row.addWidget(self._angle_btn)
+
+        self._mem_badge = StatusBadge("M", variant="lavender", parent=display_well)
+        self._mem_badge.setToolTip("Memory register active")
+        telemetry_row.addWidget(self._mem_badge)
+
+        telemetry_row.addStretch(1)
+
+        self._copy_btn = make_button(
+            text="Copy",
+            variant="ghost",
+            tooltip="Copy result to clipboard (Ctrl+C)",
+            on_click=self._copy_result,
+            icon_name="copy",
+            icon_size=14,
+            parent=display_well,
+        )
+        self._copy_btn.setStyleSheet("padding: 3px 9px; font-size: 11px;")
+        telemetry_row.addWidget(self._copy_btn)
+
+        display_layout.addLayout(telemetry_row)
+
+        # Previous expression breadcrumb
         self._breadcrumb_label = QLabel("", display_well)
         self._breadcrumb_label.setProperty("role", "caption")
-        self._breadcrumb_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        self._breadcrumb_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self._breadcrumb_label.setAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        )
+        self._breadcrumb_label.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse
+        )
         display_layout.addWidget(self._breadcrumb_label)
 
-        # Direct keyboard-editable expression line
+        # Direct keyboard-editable expression input
         self._expr_input = QLineEdit(display_well)
-        self._expr_input.setPlaceholderText("Type an expression or use keypad (e.g., 2 * sin(30) + sqrt(16))")
+        self._expr_input.setPlaceholderText("Type an expression or tap keys below...")
         self._expr_input.setAlignment(Qt.AlignmentFlag.AlignRight)
         self._expr_input.setStyleSheet(
-            "QLineEdit { border: none; background: transparent; font-family: 'Cascadia Code', 'Consolas', monospace; font-size: 14px; padding: 2px 0px; }"
+            "QLineEdit { border: none; background: transparent; "
+            "font-family: 'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace; "
+            "font-size: 14px; padding: 2px 0px; }"
         )
         self._expr_input.returnPressed.connect(self.evaluate_current)
         self._expr_input.textEdited.connect(self._on_expression_edited)
         display_layout.addWidget(self._expr_input)
 
-        # Primary large numeric readout
+        # Large primary numeric readout
         self._readout_label = QLabel("0", display_well)
         self._readout_label.setProperty("role", "display-xl")
-        self._readout_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        self._readout_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        self._readout_label.setMinimumHeight(44)
+        self._readout_label.setAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        )
+        self._readout_label.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse
+        )
+        self._readout_label.setMinimumHeight(46)
         display_layout.addWidget(self._readout_label)
 
-        # Inline non-intrusive error message banner
+        # Soft Blush Pink inline error banner
         self._error_label = QLabel("", display_well)
-        self._error_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        self._error_label.setAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        )
         self._error_label.setWordWrap(True)
         self._error_label.setVisible(False)
         display_layout.addWidget(self._error_label)
 
-        console_col.addWidget(display_well)
+        calc_card.body_layout.addWidget(display_well)
 
-        # --- Memory Register Row ---
+        # --- Understated Memory Strip ---
         mem_row = QHBoxLayout()
         mem_row.setSpacing(6)
         mem_specs: tuple[tuple[str, str, str], ...] = (
@@ -202,21 +250,23 @@ class SimpleCalculatorWindow(BaseWindow):
         )
         self._mem_buttons: dict[str, QPushButton] = {}
         for label, tip, action_code in mem_specs:
-            btn = QPushButton(label, central)
-            btn.setProperty("variant", "key-fn")
+            btn = QPushButton(label, calc_card)
+            btn.setProperty("variant", "ghost")
             btn.setToolTip(tip)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            btn.setMinimumHeight(30)
-            btn.clicked.connect(lambda _=False, code=action_code: self._handle_memory_action(code))
+            btn.setStyleSheet("padding: 4px 6px; font-size: 12px; font-weight: 600;")
+            btn.clicked.connect(
+                lambda _=False, code=action_code: self._handle_memory_action(code)
+            )
             mem_row.addWidget(btn, 1)
             self._mem_buttons[action_code] = btn
-        console_col.addLayout(mem_row)
+        calc_card.body_layout.addLayout(mem_row)
 
-        # --- Collapsible Scientific Function Grid ---
-        self._sci_panel = QWidget(central)
+        # --- Collapsible Scientific Functions Matrix ---
+        self._sci_panel = QWidget(calc_card)
         sci_grid = QGridLayout(self._sci_panel)
         sci_grid.setContentsMargins(0, 0, 0, 0)
-        sci_grid.setSpacing(6)
+        sci_grid.setSpacing(7)
 
         self._second_btn = QPushButton("2nd", self._sci_panel)
         self._second_btn.setProperty("variant", "segmented")
@@ -251,7 +301,6 @@ class SimpleCalculatorWindow(BaseWindow):
             sci_grid.addWidget(btn, row, col)
             self._shiftable_buttons[key_id] = btn
 
-        # Configure secondary labels/tokens for shiftable keys
         self._configure_shift_metadata()
 
         static_sci_specs: tuple[tuple[int, int, str, str, str], ...] = (
@@ -259,7 +308,7 @@ class SimpleCalculatorWindow(BaseWindow):
             (2, 1, ")", ")", "Close parenthesis"),
             (2, 2, "n!", "!", "Factorial"),
             (2, 3, "π", "π", "Pi (3.14159265...)"),
-            (2, 4, "Ans", "Ans", "Insert previous calculation result"),
+            (2, 4, "Ans", "Ans", "Insert previous result"),
         )
         for row, col, label, token, tip in static_sci_specs:
             btn = QPushButton(label, self._sci_panel)
@@ -270,16 +319,16 @@ class SimpleCalculatorWindow(BaseWindow):
             btn.clicked.connect(lambda _=False, t=token: self._insert_token(t))
             sci_grid.addWidget(btn, row, col)
 
-        console_col.addWidget(self._sci_panel)
+        calc_card.body_layout.addWidget(self._sci_panel)
 
-        # --- Primary Tactile Keypad Grid (4x5) ---
+        # --- Primary Tactile Pastel Keypad Grid (4x5) ---
         keypad_grid = QGridLayout()
         keypad_grid.setContentsMargins(0, 0, 0, 0)
-        keypad_grid.setSpacing(7)
+        keypad_grid.setSpacing(8)
 
         keypad_specs: tuple[tuple[int, int, str, str, str], ...] = (
             (0, 0, "C", "key-danger", "clear"),
-            (0, 1, "⌫", "key-fn", "backspace"),
+            (0, 1, "", "key-fn", "backspace"),
             (0, 2, "%", "key-op", "token:%"),
             (0, 3, "÷", "key-op", "token:÷"),
             (1, 0, "7", "key-num", "token:7"),
@@ -300,62 +349,76 @@ class SimpleCalculatorWindow(BaseWindow):
             (4, 3, "=", "primary", "equals"),
         )
 
+        self._backspace_btn: QPushButton | None = None
         for row, col, label, variant, action in keypad_specs:
-            btn = QPushButton(label, central)
+            btn = QPushButton(label, calc_card)
             btn.setProperty("variant", variant)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             btn.setMinimumHeight(46)
             btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-            if action == "equals":
-                btn.setStyleSheet("font-family: 'Cascadia Code', 'Consolas', monospace; font-size: 18px;")
+            if action == "backspace":
+                btn.setToolTip("Backspace")
+                self._backspace_btn = btn
+            elif action == "equals":
+                btn.setStyleSheet(
+                    "font-family: 'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace; "
+                    "font-size: 19px; border-radius: 12px;"
+                )
             btn.clicked.connect(lambda _=False, act=action: self._handle_keypad_action(act))
             keypad_grid.addWidget(btn, row, col)
 
-        console_col.addLayout(keypad_grid, 1)
-        root.addLayout(console_col, 3)
+        calc_card.body_layout.addLayout(keypad_grid, 1)
+        root.addWidget(calc_card, 3)
 
         # ==============================================================
-        # Right Column: Paper Calculation Tape Sidebar
+        # Collapsible Calculation Tape Card
         # ==============================================================
-        tape_card = CardFrame(padding=14, spacing=10, parent=central)
-        tape_card.setMinimumWidth(250)
-        tape_card.setMaximumWidth(330)
+        self._tape_card = CardFrame(padding=18, spacing=12, parent=central)
+        self._tape_card.setMinimumWidth(0)
+        self._tape_card.setMaximumWidth(_TAPE_EXPANDED_WIDTH if self._tape_visible else 0)
 
-        clear_tape_btn = make_button(
+        self._tape_anim = QPropertyAnimation(self._tape_card, b"maximumWidth", self)
+        self._tape_anim.setDuration(180)
+        self._tape_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self._tape_anim.finished.connect(self._on_tape_animation_finished)
+
+        self._clear_tape_btn = make_button(
             text="Clear",
             variant="ghost",
             tooltip="Clear calculation history tape",
             on_click=self._clear_tape,
-            parent=tape_card,
+            icon_name="trash",
+            icon_size=13,
+            parent=self._tape_card,
         )
-        tape_card.body_layout.addWidget(
-            SectionHeader("Calculation Tape", accessory=clear_tape_btn, parent=tape_card)
+        self._clear_tape_btn.setStyleSheet("padding: 4px 8px; font-size: 12px;")
+        self._tape_card.body_layout.addWidget(
+            SectionHeader("Tape", accessory=self._clear_tape_btn, parent=self._tape_card)
         )
 
-        hint_lbl = QLabel("Click an item to reuse its result. Double-click to copy.", tape_card)
+        hint_lbl = QLabel("Click an item to insert its value. Double-click to copy.", self._tape_card)
         hint_lbl.setProperty("role", "caption")
         hint_lbl.setWordWrap(True)
-        tape_card.body_layout.addWidget(hint_lbl)
+        self._tape_card.body_layout.addWidget(hint_lbl)
 
-        tape_card.body_layout.addWidget(HorizontalDivider(tape_card))
+        self._tape_card.body_layout.addWidget(HorizontalDivider(self._tape_card))
 
-        self._tape_list = QListWidget(tape_card)
+        self._tape_list = QListWidget(self._tape_card)
         self._tape_list.setAlternatingRowColors(True)
         self._tape_list.setWordWrap(True)
         self._tape_list.itemClicked.connect(self._on_tape_item_clicked)
         self._tape_list.itemDoubleClicked.connect(self._on_tape_item_double_clicked)
-        tape_card.body_layout.addWidget(self._tape_list, 1)
+        self._tape_card.body_layout.addWidget(self._tape_list, 1)
 
-        self._empty_tape_lbl = QLabel(
-            "No calculations yet.\nYour evaluated expressions will appear here.",
-            tape_card,
+        self._empty_tape_state = EmptyStateWidget(
+            title="No History Yet",
+            description="Evaluated calculations appear here for quick reuse.",
+            icon_name="history",
+            parent=self._tape_card,
         )
-        self._empty_tape_lbl.setProperty("role", "muted")
-        self._empty_tape_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._empty_tape_lbl.setWordWrap(True)
-        tape_card.body_layout.addWidget(self._empty_tape_lbl, 1)
+        self._tape_card.body_layout.addWidget(self._empty_tape_state, 1)
 
-        root.addWidget(tape_card, 2)
+        root.addWidget(self._tape_card, 2)
 
     def _configure_shift_metadata(self) -> None:
         """Attach secondary (2nd) labels and tokens to shiftable scientific keys."""
@@ -376,12 +439,69 @@ class SimpleCalculatorWindow(BaseWindow):
             btn.setProperty("secondary_token", sec_token)
 
     def _bind_shortcuts(self) -> None:
-        """Bind convenient global keyboard shortcuts."""
-        copy_shortcut = QShortcut(QKeySequence.StandardKey.Copy, self)
-        copy_shortcut.activated.connect(self._copy_if_no_selection)
+        QShortcut(QKeySequence.StandardKey.Copy, self).activated.connect(
+            self._copy_if_no_selection
+        )
+        QShortcut(QKeySequence(Qt.Key.Key_Escape), self).activated.connect(self.clear_all)
+        QShortcut(QKeySequence("Ctrl+H"), self).activated.connect(self._toggle_tape_drawer)
 
-        clear_shortcut = QShortcut(QKeySequence(Qt.Key.Key_Escape), self)
-        clear_shortcut.activated.connect(self.clear_all)
+    def _refresh_dynamic_icons(self) -> None:
+        """Keep Lucide vector icon stroke colors synchronized with the active theme."""
+        tokens = self.theme_manager.tokens
+        self._tape_toggle_btn.setIcon(
+            get_lucide_icon(
+                "history",
+                color=tokens.accent_primary if self._tape_visible else tokens.text_secondary,
+                size=14,
+            )
+        )
+        self._tape_toggle_btn.setIconSize(QSize(14, 14))
+
+        self._copy_btn.setIcon(
+            get_lucide_icon("copy", color=tokens.text_secondary, size=13)
+        )
+        self._copy_btn.setIconSize(QSize(13, 13))
+
+        self._clear_tape_btn.setIcon(
+            get_lucide_icon("trash", color=tokens.text_secondary, size=13)
+        )
+        self._clear_tape_btn.setIconSize(QSize(13, 13))
+
+        if self._backspace_btn is not None:
+            self._backspace_btn.setIcon(
+                get_lucide_icon("delete", color=tokens.text_secondary, size=18)
+            )
+            self._backspace_btn.setIconSize(QSize(18, 18))
+
+    # ------------------------------------------------------------------
+    # Collapsible Tape Drawer Animation
+    # ------------------------------------------------------------------
+
+    def _toggle_tape_drawer(self) -> None:
+        self._tape_visible = not self._tape_visible
+        self._tape_toggle_btn.setChecked(self._tape_visible)
+        self.settings.set("tape_visible", self._tape_visible)
+        self._refresh_dynamic_icons()
+        self._apply_tape_drawer_state(animate=True)
+
+    def _apply_tape_drawer_state(self, animate: bool) -> None:
+        target_w = _TAPE_EXPANDED_WIDTH if self._tape_visible else 0
+        if self._tape_visible:
+            self._tape_card.setVisible(True)
+
+        if not animate:
+            self._tape_card.setMaximumWidth(target_w)
+            self._tape_card.setVisible(self._tape_visible)
+            return
+
+        self._tape_anim.stop()
+        self._tape_anim.setStartValue(self._tape_card.maximumWidth())
+        self._tape_anim.setEndValue(target_w)
+        self._tape_anim.start()
+
+    def _on_tape_animation_finished(self) -> None:
+        if not self._tape_visible:
+            self._tape_card.setVisible(False)
 
     # ------------------------------------------------------------------
     # Mode, Angle & Shift Controls
@@ -402,8 +522,8 @@ class SimpleCalculatorWindow(BaseWindow):
         self.settings.set("angle_mode", self.engine.angle_mode.value)
         self._sync_angle_ui()
         self.set_status_message(
-            f"Trigonometry angle mode: {self.engine.angle_mode.value}",
-            timeout_ms=2200,
+            f"Angle unit: {self.engine.angle_mode.value}",
+            timeout_ms=2000,
         )
 
     def _sync_angle_ui(self) -> None:
@@ -431,26 +551,33 @@ class SimpleCalculatorWindow(BaseWindow):
             self._error_label.setVisible(False)
 
     def _show_inline_error(self, message: str) -> None:
-        danger_color = self.theme_manager.tokens.danger
+        tokens = self.theme_manager.tokens
         self._error_label.setStyleSheet(
-            f"color: {danger_color}; font-size: 12px; font-weight: 500;"
+            f"""
+            QLabel {{
+                background-color: {tokens.danger_bg};
+                color: {tokens.danger};
+                border-radius: 8px;
+                padding: 5px 10px;
+                font-size: 12px;
+                font-weight: 500;
+            }}
+            """
         )
         self._error_label.setText(message)
         self._error_label.setVisible(True)
-        self.set_status_message(message, timeout_ms=4000)
+        self.set_status_message(message, timeout_ms=3500)
 
     def _on_expression_edited(self, _text: str) -> None:
         self._just_evaluated = False
         self._clear_error_state()
 
     def _insert_token(self, token: str) -> None:
-        """Insert a digit, operator, or function token into the expression input cleanly."""
         self._clear_error_state()
         binary_ops = {"+", "−", "×", "÷", "^", "%"}
 
         if self._just_evaluated:
             if token in binary_ops or token in {"^2", "^3", "^(-1)", "!"}:
-                # Chain operation onto the previous answer
                 self._expr_input.setText(self._last_formatted_result)
                 self._expr_input.setCursorPosition(len(self._expr_input.text()))
             else:
@@ -461,7 +588,7 @@ class SimpleCalculatorWindow(BaseWindow):
         self._expr_input.setFocus()
 
     def clear_all(self) -> None:
-        """Reset active expression, error banner, and primary display to 0."""
+        """Reset active expression, error banner, and primary readout to 0."""
         self._expr_input.clear()
         self._breadcrumb_label.clear()
         self._readout_label.setText("0")
@@ -471,14 +598,12 @@ class SimpleCalculatorWindow(BaseWindow):
         self._expr_input.setFocus()
 
     def backspace(self) -> None:
-        """Delete one character before the cursor in the expression input."""
         self._clear_error_state()
         self._just_evaluated = False
         self._expr_input.backspace()
         self._expr_input.setFocus()
 
     def toggle_sign(self) -> None:
-        """Negate the current expression or toggle a leading minus sign."""
         self._clear_error_state()
         text = self._expr_input.text().strip()
         if not text:
@@ -510,7 +635,7 @@ class SimpleCalculatorWindow(BaseWindow):
             self._insert_token(action.split(":", 1)[1])
 
     def evaluate_current(self) -> EvaluationResult | None:
-        """Evaluate the active expression, update readout, and append to calculation tape."""
+        """Evaluate active expression, update readout, and record to calculation tape."""
         raw_expr = self._expr_input.text().strip()
         if not raw_expr:
             return None
@@ -535,7 +660,6 @@ class SimpleCalculatorWindow(BaseWindow):
                 angle_mode=result.angle_mode.value,
             )
         )
-        self.set_status_message("Calculated", timeout_ms=2000)
         return result
 
     # ------------------------------------------------------------------
@@ -567,8 +691,7 @@ class SimpleCalculatorWindow(BaseWindow):
         if code == "mr":
             if not self._has_memory:
                 return
-            formatted_mem = format_number(self._memory_value)
-            self._insert_token(formatted_mem)
+            self._insert_token(format_number(self._memory_value))
             return
 
         val = self._current_numeric_value()
@@ -588,15 +711,15 @@ class SimpleCalculatorWindow(BaseWindow):
         self._sync_memory_ui()
         self.set_status_message(
             f"Memory: {format_number(self._memory_value)}",
-            timeout_ms=2500,
+            timeout_ms=2200,
         )
 
     def _sync_memory_ui(self) -> None:
         self._mem_badge.setVisible(self._has_memory)
         if self._has_memory:
             self._mem_badge.set_status(
-                f"M: {format_number(self._memory_value)}",
-                variant="info",
+                f"M · {format_number(self._memory_value)}",
+                variant="lavender",
             )
         self._mem_buttons["mc"].setEnabled(self._has_memory)
         self._mem_buttons["mr"].setEnabled(self._has_memory)
@@ -612,7 +735,7 @@ class SimpleCalculatorWindow(BaseWindow):
 
         item = QListWidgetItem(f"{entry.expression}\n= {entry.formatted_result}")
         item.setData(Qt.ItemDataRole.UserRole, entry)
-        item.setToolTip(f"Angle mode: {entry.angle_mode} — Click to insert result")
+        item.setToolTip(f"Angle mode: {entry.angle_mode} — Click to reuse result")
         self._tape_list.insertItem(0, item)
 
         while self._tape_list.count() > _MAX_HISTORY_ITEMS:
@@ -625,7 +748,10 @@ class SimpleCalculatorWindow(BaseWindow):
     def _sync_tape_visibility(self) -> None:
         has_items = len(self._tape_entries) > 0
         self._tape_list.setVisible(has_items)
-        self._empty_tape_lbl.setVisible(not has_items)
+        self._empty_tape_state.setVisible(not has_items)
+        self._clear_tape_btn.setEnabled(has_items)
+        count_suffix = f" ({len(self._tape_entries)})" if has_items else ""
+        self._tape_toggle_btn.setText(f"Tape{count_suffix}")
 
     def _on_tape_item_clicked(self, item: QListWidgetItem) -> None:
         entry = item.data(Qt.ItemDataRole.UserRole)
@@ -690,12 +816,11 @@ class SimpleCalculatorWindow(BaseWindow):
         if clipboard is not None:
             clipboard.setText(self._last_formatted_result)
             self.set_status_message(
-                f"Copied '{self._last_formatted_result}' to clipboard",
-                timeout_ms=2200,
+                f"Copied '{self._last_formatted_result}'",
+                timeout_ms=2000,
             )
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
-        """Forward direct keyboard input to the expression bar when focus is elsewhere."""
         if not self._expr_input.hasFocus():
             key = event.key()
             text = event.text()
@@ -705,15 +830,19 @@ class SimpleCalculatorWindow(BaseWindow):
             if key == Qt.Key.Key_Backspace:
                 self.backspace()
                 return
-            if text and text.isprintable() and not event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+            if (
+                text
+                and text.isprintable()
+                and not event.modifiers() & Qt.KeyboardModifier.ControlModifier
+            ):
                 self._expr_input.setFocus()
                 self._insert_token(text)
                 return
         super().keyPressEvent(event)
 
     def on_theme_updated(self, theme_name: str) -> None:
-        """Refresh error label color if visible when theme switches."""
         _ = theme_name
+        self._refresh_dynamic_icons()
         if self._error_label.isVisible() and self._error_label.text():
             self._show_inline_error(self._error_label.text())
         QTimer.singleShot(0, self.update)
