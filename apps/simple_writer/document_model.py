@@ -250,7 +250,10 @@ def load_docx_into_qtext(docx_path: Path, target_doc: QTextDocument) -> str:
     body = root.find(f"{_W}body")
     paragraphs = body.findall(f"{_W}p") if body is not None else root.findall(f".//{_W}p")
 
-    inferred_title = docx_path.stem.replace("_", " ").replace("-", " ").strip() or "Untitled Document"
+    inferred_title = (
+        docx_path.stem.replace("_", " ").replace("-", " ").strip().title()
+        or "Untitled Document"
+    )
 
     for p_idx, p_elem in enumerate(paragraphs):
         if p_idx > 0:

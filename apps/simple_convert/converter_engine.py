@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import csv
-import io
 import json
 import uuid
 from dataclasses import dataclass, field
@@ -13,20 +11,16 @@ from typing import Literal
 from PySide6.QtCore import QBuffer, QIODevice, QMarginsF, QRectF, QSize, QSizeF, Qt
 from PySide6.QtGui import (
     QColor,
-    QFont,
     QImage,
     QPageLayout,
     QPageSize,
     QPainter,
     QPdfWriter,
-    QPen,
     QTextDocument,
 )
 
 from apps.simple_pdf.pdf_engine import PdfDocumentService
-from apps.simple_sheets.formula_engine import format_cell_display
 from apps.simple_sheets.sheet_model import (
-    CellData,
     SheetModel,
     WorkbookModel,
     load_workbook,
