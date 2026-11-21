@@ -142,6 +142,15 @@ APP_REGISTRY: dict[str, AppMetadata] = {
         category="Documents",
         description="Offline optical character recognition for images and scanned pages.",
     ),
+    "simple_chat": AppMetadata(
+        app_id="simple_chat",
+        display_name="SimpleChat",
+        executable="SimpleChat.exe",
+        version=SUITE_VERSION,
+        category="Office",
+        description="Local-area network chat application for real-time messaging.",
+    ),
+
 }
 
 
