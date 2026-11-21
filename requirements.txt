@@ -1,0 +1,42 @@
+# ==============================================================================
+# Jaiho Super Simple Office - Python Dependencies (Python 3.12+ / Windows x64)
+# Organization: Jaiho Digital
+# ==============================================================================
+
+# --- Core Desktop Framework ---
+PySide6>=6.7.0,<6.9.0
+
+# --- PDF Rendering & Manipulation ---
+# Note: PyMuPDF is AGPLv3; review THIRD_PARTY_LICENSES.md for distribution terms.
+PyMuPDF>=1.24.0,<1.26.0
+pypdf>=5.0.0,<6.0.0
+
+# --- Office Document Processing ---
+python-docx>=1.1.2,<2.0.0
+openpyxl>=3.1.5,<4.0.0
+python-pptx>=1.0.2,<2.0.0
+formulas>=1.2.8,<2.0.0
+
+# --- Charts & Numerical Computation ---
+matplotlib>=3.9.0,<4.0.0
+numpy>=2.0.0,<3.0.0
+
+# --- Image Processing & OCR ---
+Pillow>=10.4.0,<12.0.0
+opencv-python-headless>=4.10.0,<5.0.0
+pytesseract>=0.3.13,<0.4.0
+
+# --- Windows Hardware & OS Integration (Windows WIA Scanner Interface) ---
+pywin32>=306; sys_platform == "win32"
+comtypes>=1.4.7; sys_platform == "win32"
+
+# --- Calendar & Timezone Support ---
+icalendar>=6.0.0,<7.0.0
+python-dateutil>=2.9.0,<3.0.0
+
+# --- Packaging, Testing & Code Quality (Development Only) ---
+pyinstaller>=6.10.0,<7.0.0
+pytest>=8.3.0,<9.0.0
+pytest-qt>=4.4.0,<5.0.0
+ruff>=0.6.0,<1.0.0
+mypy>=1.11.0,<2.0.0
