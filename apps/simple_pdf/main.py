@@ -11,7 +11,6 @@ from PySide6.QtGui import (
     QColor,
     QDragEnterEvent,
     QDropEvent,
-    QFont,
     QIcon,
     QKeySequence,
     QMouseEvent,
