@@ -2,17 +2,17 @@
 
 from __future__ import annotations
 
+import contextlib
 import math
 import re
 import statistics
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Union
 
 CellCoord = tuple[int, int]  # (0-based row, 0-based col)
-CellScalar = Union[float, int, str, bool, None]
+CellScalar = float | int | str | bool | None
 
-_CELL_REF_RE = re.compile(r"^\$?([A-Za-z]{1,3})\$?([1-9][0-9]{0,5})$")
+_CELL_REF_RE = re.compile(r"^\$?([A-Za-z]{1,3})\$?([1-9][0-9]*)$")
 _TOKEN_RE = re.compile(
     r"""
     \s*(?:
@@ -73,8 +73,13 @@ def parse_cell_ref(ref: str) -> CellCoord:
     col_str, row_str = match.group(1), match.group(2)
     col_idx = col_label_to_index(col_str)
     row_idx = int(row_str) - 1
-    return row_idx, col_idx
+    if col_idx >= 16384 or row_idx >= 1_048_576:
+        raise FormulaEvaluationError(
+            "#REF!",
+            f"Cell reference '{ref}' is out of sheet bounds.",
+        )
 
+    return row_idx, col_idx
 
 def format_cell_ref(row: int, col: int) -> str:
     """Format a 0-based (row, col) coordinate into A1 notation ((0, 0) -> 'A1')."""
@@ -118,15 +123,11 @@ def extract_dependencies(raw_input: str) -> set[CellCoord]:
         pos = match.end()
         if match.lastgroup == "CELL_RANGE":
             left, right = match.group("CELL_RANGE").split(":", 1)
-            try:
+            with contextlib.suppress(FormulaEvaluationError):
                 deps.update(expand_range(left.strip(), right.strip()))
-            except FormulaEvaluationError:
-                pass
         elif match.lastgroup == "CELL_REF":
-            try:
+            with contextlib.suppress(FormulaEvaluationError):
                 deps.add(parse_cell_ref(match.group("CELL_REF")))
-            except FormulaEvaluationError:
-                pass
     return deps
 
 

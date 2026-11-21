@@ -3,23 +3,22 @@
 from __future__ import annotations
 
 import base64
+import contextlib
 import hashlib
 import hmac
 import ipaddress
 import json
-import os
 import secrets
 import shutil
 import socket
 import sqlite3
 import threading
 import uuid
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 
 from core.file_manager.file_ops import (
-    FileOperationError,
     atomic_write_bytes,
     sanitize_filename,
     validate_input_file,
@@ -30,7 +29,7 @@ DEFAULT_LAN_PORT = 45829
 
 
 def _utc_now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 def get_local_ipv4_addresses() -> list[str]:
@@ -138,17 +137,16 @@ class NetworkConditionPolicy:
         primary_ip = valid_ips[0]
         local_subnet = _ipv4_to_subnet_prefix(primary_ip)
 
-        if self.allowed_subnet_prefix:
-            if local_subnet != self.allowed_subnet_prefix:
-                return NetworkConditionStatus(
-                    allowed=False,
-                    reason=(
-                        f"Network mismatch: device subnet '{local_subnet}.x' does not match "
-                        f"required same-network subnet '{self.allowed_subnet_prefix}.x'."
-                    ),
-                    local_ips=tuple(valid_ips),
-                    subnet_tag=f"{local_subnet}.0/24",
-                )
+        if self.allowed_subnet_prefix and local_subnet != self.allowed_subnet_prefix:
+            return NetworkConditionStatus(
+                allowed=False,
+                reason=(
+                    f"Network mismatch: device subnet '{local_subnet}.x' does not match "
+                    f"required same-network subnet '{self.allowed_subnet_prefix}.x'."
+                ),
+                local_ips=tuple(valid_ips),
+                subnet_tag=f"{local_subnet}.0/24",
+            )
 
         if peer_ip.strip():
             peer_subnet = _ipv4_to_subnet_prefix(peer_ip.strip())
@@ -692,10 +690,8 @@ class LocalLanChatRelay:
     def stop(self) -> None:
         self._stop_event.set()
         if self._sock is not None:
-            try:
+            with contextlib.suppress(OSError):
                 self._sock.close()
-            except OSError:
-                pass
             self._sock = None
         if self._thread is not None and self._thread.is_alive():
             self._thread.join(timeout=1.0)

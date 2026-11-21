@@ -101,7 +101,7 @@ _CHART_PASTEL_PALETTE: tuple[str, ...] = (
 class SheetCellDelegate(QStyledItemDelegate):
     """Item delegate that loads raw cell formulas into inline cell editors."""
 
-    def setEditorData(self, editor: QWidget, index: QModelIndex) -> None:
+    def setEditorData(self, editor: QWidget, index: QModelIndex) -> None:  # noqa: N802
         raw_val = index.data(Qt.ItemDataRole.UserRole)
         if isinstance(editor, QLineEdit):
             editor.setText(str(raw_val) if raw_val is not None else "")
@@ -1177,8 +1177,7 @@ class SimpleSheetsWindow(BaseWindow):
                 self.workbook.rename_sheet(index, new_name.strip())
                 self._rebuild_sheet_tabs()
                 self._mark_dirty()
-        elif chosen == delete_act:
-            if self.workbook.remove_sheet(index):
+        elif chosen == delete_act and self.workbook.remove_sheet(index):
                 self._load_active_sheet_into_grid()
                 self._rebuild_sheet_tabs()
                 self._mark_dirty()

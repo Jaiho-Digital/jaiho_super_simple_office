@@ -30,7 +30,6 @@ from PySide6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QPlainTextEdit,
-    QPushButton,
     QScrollArea,
     QVBoxLayout,
     QWidget,

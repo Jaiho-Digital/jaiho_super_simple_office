@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 from pathlib import Path
@@ -21,7 +22,6 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QListWidget,
     QListWidgetItem,
-    QPushButton,
     QScrollArea,
     QTabWidget,
     QVBoxLayout,
@@ -37,8 +37,8 @@ from apps.simple_chat.chat_engine import (
     LocalLanChatRelay,
     NetworkConditionPolicy,
     build_sample_voice_wav_bytes,
-    get_local_ipv4_addresses,
 )
+from core.file_manager.file_ops import FileOperationError
 from core.notifications.notifier import NotificationLevel
 from core.ui.base_window import BaseWindow, bootstrap_application
 from core.ui.dialogs import show_error_dialog
@@ -47,7 +47,6 @@ from core.ui.widgets import (
     HorizontalDivider,
     SectionHeader,
     StatusBadge,
-    VerticalDivider,
     make_button,
 )
 
@@ -147,10 +146,8 @@ class SimpleChatWindow(BaseWindow):
             network_passphrase=str(self.settings.get("network_passphrase", "") or ""),
         )
         self._relay = LocalLanChatRelay(store=self.store, host="127.0.0.1", port=0)
-        try:
+        with contextlib.suppress(Exception):
             self._relay.start()
-        except Exception:
-            pass
 
         self._current_user: ChatUserAccount | None = None
         self._current_room: ChatRoomInfo | None = None

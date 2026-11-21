@@ -319,8 +319,8 @@ class PaginatedPageEditor(QTextEdit):
                 target_top = natural_top
 
                 if has_explicit_break:
-                    if block_top < printable_top - 0.5:
-                        target_top = natural_top + (printable_top - block_top)
+                    next_printable_top = (page_idx + 1) * stride + top_m
+                    target_top = natural_top + (next_printable_top - block_top)
                 elif block_top < printable_top - 0.5:
                     target_top = natural_top + (printable_top - block_top)
                 elif (block_top + block_height) > (printable_bottom + 0.5) and block_height <= max_printable_h:
@@ -338,7 +338,22 @@ class PaginatedPageEditor(QTextEdit):
                 block = block.next()
 
             doc_bottom = doc.size().height()
-            self._page_count = max(1, int(math.ceil(max(1.0, doc_bottom) / stride)))
+            height_pages = max(1, int(math.ceil(max(1.0, doc_bottom) / stride)))
+
+            hard_break_count = 0
+            scan_block = doc.begin()
+            while scan_block.isValid():
+                if (
+                    scan_block.blockNumber() > 0
+                    and (
+                        scan_block.blockFormat().pageBreakPolicy()
+                        & QTextFormat.PageBreakFlag.PageBreak_AlwaysBefore
+                    )
+                ):
+                    hard_break_count += 1
+                scan_block = scan_block.next()
+
+            self._page_count = max(height_pages, 1 + hard_break_count)
             self.viewport().update()
         finally:
             self._is_reflowing = False
