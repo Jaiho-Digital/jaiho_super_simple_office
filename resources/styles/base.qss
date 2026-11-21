@@ -1,6 +1,6 @@
 /* ==========================================================================
-   Jaiho Super Simple Office — Handcrafted Desktop Style Sheet
-   Aesthetic: Archival Paper & Obsidian Ink (Swiss Editorial / Tactile)
+   Jaiho Super Simple Office — Soft Modern Pastel Style Sheet
+   Design DNA: Warm Neutral Foundations + Restrained Pastel Accents
    ========================================================================== */
 
 * {
@@ -10,8 +10,13 @@
     outline: none;
 }
 
-QMainWindow, QDialog {
+QMainWindow, QDialog, QWidget#windowShell, QWidget#contentHost {
     background-color: $bg_canvas;
+}
+
+QScrollArea, QScrollArea > QWidget > QWidget {
+    background-color: $bg_canvas;
+    border: none;
 }
 
 QWidget {
@@ -19,11 +24,19 @@ QWidget {
     color: $text_primary;
 }
 
-/* --- Typography Roles --- */
+/* --- Typography Hierarchy --- */
+QLabel[role="app-title"] {
+    font-size: 15px;
+    font-weight: 600;
+    color: $text_primary;
+    letter-spacing: -0.2px;
+}
+
 QLabel[role="title"] {
     font-size: $font_size_lg;
     font-weight: 600;
     color: $text_primary;
+    letter-spacing: -0.3px;
 }
 
 QLabel[role="section-header"] {
@@ -44,9 +57,10 @@ QLabel[role="caption"] {
 
 QLabel[role="display-xl"] {
     font-family: $font_mono;
-    font-size: 32px;
+    font-size: 34px;
     font-weight: 600;
     color: $text_primary;
+    letter-spacing: -0.6px;
 }
 
 QLabel[role="display-lg"] {
@@ -60,11 +74,27 @@ QLabel[code="true"] {
     font-family: $font_mono;
 }
 
-/* --- Structural Surfaces & Depth Hierarchy --- */
+/* --- Surfaces, Cards & Integrated App Header --- */
+QFrame[surface="app-header"] {
+    background-color: $bg_surface;
+    border-bottom: 1px solid $border_subtle;
+}
+
+QFrame[surface="footer-bar"] {
+    background-color: $bg_surface;
+    border-top: 1px solid $border_subtle;
+}
+
 QFrame[surface="card"] {
     background-color: $bg_surface;
     border: 1px solid $border_subtle;
-    border-radius: $radius_md;
+    border-radius: $radius_lg;
+}
+
+QFrame[surface="page-sheet"] {
+    background-color: $bg_surface;
+    border: 1px solid $border_strong;
+    border-radius: 6px;
 }
 
 QFrame[surface="elevated"] {
@@ -75,7 +105,13 @@ QFrame[surface="elevated"] {
 
 QFrame[surface="recessed"] {
     background-color: $bg_recessed;
-    border: 1px solid $border_strong;
+    border: 1px solid $border_subtle;
+    border-radius: $radius_md;
+}
+
+QFrame[surface="pastel-well"] {
+    background-color: $accent_subtle;
+    border: 1px solid $accent_soft_border;
     border-radius: $radius_md;
 }
 
@@ -89,43 +125,22 @@ QFrame[surface="inspector"] {
     border-left: 1px solid $border_subtle;
 }
 
-QFrame[surface="toolbar-strip"] {
-    background-color: $bg_surface;
-    border-bottom: 1px solid $border_subtle;
-}
-
 QFrame[frameShape="4"], QFrame[frameShape="5"] {
     color: $border_subtle;
 }
 
-/* --- Menu Bar & Context Menus --- */
-QMenuBar {
-    background-color: $bg_surface;
-    border-bottom: 1px solid $border_subtle;
-    padding: 3px 8px;
-}
-
-QMenuBar::item {
-    background-color: transparent;
-    padding: 5px 10px;
-    border-radius: $radius_sm;
-    color: $text_primary;
-}
-
-QMenuBar::item:selected {
-    background-color: $bg_elevated;
-}
-
+/* --- Floating Context Menus --- */
 QMenu {
     background-color: $bg_surface;
     border: 1px solid $border_strong;
     border-radius: $radius_md;
-    padding: 5px;
+    padding: 6px;
 }
 
 QMenu::item {
-    padding: 6px 26px 6px 12px;
-    border-radius: $radius_sm;
+    padding: 7px 22px 7px 12px;
+    border-radius: 8px;
+    color: $text_primary;
 }
 
 QMenu::item:selected {
@@ -143,68 +158,41 @@ QMenu::separator {
     margin: 5px 8px;
 }
 
-/* --- ToolBars & StatusBar --- */
-QToolBar {
-    background-color: $bg_surface;
-    border-bottom: 1px solid $border_subtle;
-    spacing: 4px;
-    padding: 5px 10px;
-}
-
-QToolButton {
-    background-color: transparent;
-    border: 1px solid transparent;
-    border-radius: $radius_sm;
-    padding: 5px 9px;
-    color: $text_primary;
-}
-
-QToolButton:hover {
-    background-color: $bg_elevated;
-    border-color: $border_subtle;
-}
-
-QToolButton:pressed, QToolButton:checked {
-    background-color: $bg_selected;
-    border-color: $accent_primary;
-    color: $accent_primary;
-}
-
-QStatusBar {
-    background-color: $bg_surface;
-    border-top: 1px solid $border_subtle;
-    color: $text_secondary;
-    font-size: $font_size_sm;
-    padding: 0px 6px;
-}
-
-QStatusBar::item {
-    border: none;
-}
-
-/* --- Standard & Tactile Buttons --- */
+/* --- Understated Rounded Buttons (10–12px Radii) --- */
 QPushButton {
     background-color: $bg_surface;
     color: $text_primary;
     border: 1px solid $border_strong;
     border-radius: $radius_sm;
-    padding: 6px 14px;
+    padding: 7px 14px;
     font-weight: 500;
 }
 
 QPushButton:hover {
-    background-color: $bg_elevated;
-    border-color: $border_strong;
+    background-color: $bg_hover;
+    border-color: $accent_soft_border;
 }
 
 QPushButton:pressed {
-    background-color: $bg_hover;
+    background-color: $bg_selected;
 }
 
 QPushButton:disabled {
     background-color: $bg_recessed;
     color: $text_muted;
     border-color: $border_subtle;
+}
+
+QPushButton::menu-indicator {
+    subcontrol-origin: padding;
+    subcontrol-position: right center;
+    right: 8px;
+    width: 8px;
+    height: 8px;
+}
+
+QPushButton[has_menu="true"] {
+    padding-right: 22px;
 }
 
 QPushButton[variant="primary"] {
@@ -224,11 +212,23 @@ QPushButton[variant="primary"]:pressed {
     border-color: $accent_pressed;
 }
 
+QPushButton[variant="pastel"] {
+    background-color: $accent_subtle;
+    color: $accent_primary;
+    border: 1px solid $accent_soft_border;
+    font-weight: 600;
+}
+
+QPushButton[variant="pastel"]:hover {
+    background-color: $bg_hover;
+    border-color: $accent_primary;
+}
+
 QPushButton[variant="danger"] {
     background-color: $danger_bg;
     color: $danger;
-    border: 1px solid $danger;
-    font-weight: 500;
+    border: 1px solid transparent;
+    font-weight: 600;
 }
 
 QPushButton[variant="danger"]:hover {
@@ -240,18 +240,21 @@ QPushButton[variant="ghost"] {
     background-color: transparent;
     border: 1px solid transparent;
     color: $text_secondary;
+    padding: 6px 10px;
 }
 
 QPushButton[variant="ghost"]:hover {
-    background-color: $bg_elevated;
+    background-color: $bg_hover;
     color: $text_primary;
 }
 
 QPushButton[variant="segmented"] {
     background-color: $bg_elevated;
-    border: 1px solid $border_subtle;
+    border: 1px solid transparent;
+    border-radius: 9px;
     color: $text_secondary;
     padding: 5px 12px;
+    font-weight: 500;
 }
 
 QPushButton[variant="segmented"]:hover {
@@ -261,17 +264,17 @@ QPushButton[variant="segmented"]:hover {
 
 QPushButton[variant="segmented"]:checked {
     background-color: $bg_surface;
-    border: 1px solid $accent_primary;
+    border: 1px solid $accent_soft_border;
     color: $accent_primary;
     font-weight: 600;
 }
 
-/* --- Hardware-Inspired Tactile Keycaps (Calculator / Keypad Controls) --- */
+/* --- Soft Pastel Tactile Keycaps --- */
 QPushButton[variant="key-num"] {
     background-color: $bg_surface;
     color: $text_primary;
-    border: 1px solid $border_strong;
-    border-radius: $radius_md;
+    border: 1px solid $border_subtle;
+    border-radius: 12px;
     font-family: $font_mono;
     font-size: 16px;
     font-weight: 600;
@@ -279,38 +282,40 @@ QPushButton[variant="key-num"] {
 }
 
 QPushButton[variant="key-num"]:hover {
-    background-color: $bg_elevated;
+    background-color: $bg_hover;
+    border-color: $border_strong;
 }
 
 QPushButton[variant="key-num"]:pressed {
-    background-color: $bg_hover;
+    background-color: $bg_selected;
 }
 
 QPushButton[variant="key-op"] {
-    background-color: $bg_elevated;
-    color: $accent_primary;
-    border: 1px solid $border_strong;
-    border-radius: $radius_md;
+    background-color: $pastel_blue;
+    color: $text_primary;
+    border: 1px solid transparent;
+    border-radius: 12px;
     font-family: $font_mono;
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 600;
     padding: 8px;
 }
 
 QPushButton[variant="key-op"]:hover {
-    background-color: $bg_selected;
-    border-color: $accent_primary;
+    background-color: $accent_subtle;
+    color: $accent_primary;
+    border-color: $accent_soft_border;
 }
 
 QPushButton[variant="key-op"]:pressed {
-    background-color: $accent_subtle;
+    background-color: $bg_selected;
 }
 
 QPushButton[variant="key-fn"] {
-    background-color: $bg_recessed;
+    background-color: $bg_elevated;
     color: $text_secondary;
-    border: 1px solid $border_subtle;
-    border-radius: $radius_md;
+    border: 1px solid transparent;
+    border-radius: 11px;
     font-family: $font_mono;
     font-size: 13px;
     font-weight: 500;
@@ -318,20 +323,20 @@ QPushButton[variant="key-fn"] {
 }
 
 QPushButton[variant="key-fn"]:hover {
-    background-color: $bg_elevated;
+    background-color: $bg_hover;
     color: $text_primary;
-    border-color: $border_strong;
+    border-color: $border_subtle;
 }
 
 QPushButton[variant="key-fn"]:pressed {
-    background-color: $bg_hover;
+    background-color: $bg_selected;
 }
 
 QPushButton[variant="key-danger"] {
-    background-color: $danger_bg;
+    background-color: $pastel_blush;
     color: $danger;
-    border: 1px solid $border_strong;
-    border-radius: $radius_md;
+    border: 1px solid transparent;
+    border-radius: 12px;
     font-family: $font_mono;
     font-size: 14px;
     font-weight: 600;
@@ -341,22 +346,22 @@ QPushButton[variant="key-danger"] {
 QPushButton[variant="key-danger"]:hover {
     background-color: $danger;
     color: $accent_text;
-    border-color: $danger;
 }
 
-/* --- Text Inputs, Editors & Selectors --- */
+/* --- Inputs, Editors & Dropdowns --- */
 QLineEdit, QTextEdit, QPlainTextEdit, QSpinBox, QDoubleSpinBox, QDateEdit, QTimeEdit {
-    background-color: $bg_surface;
+    background-color: $bg_recessed;
     color: $text_primary;
-    border: 1px solid $border_strong;
+    border: 1px solid $border_subtle;
     border-radius: $radius_sm;
-    padding: 6px 9px;
+    padding: 7px 11px;
     selection-background-color: $accent_primary;
     selection-color: $accent_text;
 }
 
 QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus,
 QSpinBox:focus, QDoubleSpinBox:focus, QDateEdit:focus, QTimeEdit:focus {
+    background-color: $bg_surface;
     border: 1px solid $accent_primary;
 }
 
@@ -375,11 +380,18 @@ QComboBox {
 
 QComboBox:hover {
     border-color: $accent_primary;
+    background-color: $bg_hover;
+}
+
+QComboBox::drop-down {
+    border: none;
+    width: 20px;
 }
 
 QComboBox QAbstractItemView {
     background-color: $bg_surface;
     border: 1px solid $border_strong;
+    border-radius: $radius_sm;
     selection-background-color: $bg_selected;
     selection-color: $accent_primary;
     padding: 4px;
@@ -392,18 +404,18 @@ QCheckBox, QRadioButton {
 }
 
 QCheckBox::indicator, QRadioButton::indicator {
-    width: 16px;
-    height: 16px;
+    width: 17px;
+    height: 17px;
     border: 1px solid $border_strong;
     background-color: $bg_surface;
 }
 
 QCheckBox::indicator {
-    border-radius: 4px;
+    border-radius: 5px;
 }
 
 QRadioButton::indicator {
-    border-radius: 8px;
+    border-radius: 9px;
 }
 
 QCheckBox::indicator:hover, QRadioButton::indicator:hover {
@@ -426,9 +438,9 @@ QTabWidget::pane {
 QTabBar::tab {
     background-color: $bg_elevated;
     color: $text_secondary;
-    border: 1px solid $border_subtle;
-    padding: 7px 15px;
-    margin-right: 3px;
+    border: 1px solid transparent;
+    padding: 7px 16px;
+    margin-right: 4px;
     border-top-left-radius: $radius_sm;
     border-top-right-radius: $radius_sm;
 }
@@ -437,6 +449,7 @@ QTabBar::tab:selected {
     background-color: $bg_surface;
     color: $accent_primary;
     font-weight: 600;
+    border: 1px solid $border_subtle;
     border-bottom-color: $bg_surface;
 }
 
@@ -454,15 +467,23 @@ QListWidget, QTreeWidget, QTreeView, QTableView, QTableWidget {
     gridline-color: $border_subtle;
     selection-background-color: $bg_selected;
     selection-color: $text_primary;
+    padding: 4px;
 }
 
 QListWidget::item, QTreeWidget::item, QTreeView::item {
-    padding: 6px 9px;
-    border-radius: 3px;
+    padding: 7px 10px;
+    border-radius: 8px;
+    margin: 1px 0px;
 }
 
 QListWidget::item:hover, QTreeWidget::item:hover {
-    background-color: $bg_elevated;
+    background-color: $bg_hover;
+}
+
+QListWidget::item:selected, QTreeWidget::item:selected {
+    background-color: $bg_selected;
+    color: $accent_primary;
+    font-weight: 500;
 }
 
 QHeaderView::section {
@@ -472,7 +493,7 @@ QHeaderView::section {
     border: none;
     border-right: 1px solid $border_subtle;
     border-bottom: 1px solid $border_subtle;
-    padding: 6px 10px;
+    padding: 7px 10px;
 }
 
 /* --- GroupBox, Splitter, Sliders & ProgressBar --- */
@@ -493,59 +514,57 @@ QGroupBox::title {
 }
 
 QSplitter::handle {
-    background-color: $border_subtle;
+    background-color: transparent;
 }
 
 QSplitter::handle:horizontal {
-    width: 1px;
+    width: 6px;
 }
 
 QSplitter::handle:vertical {
-    height: 1px;
+    height: 6px;
 }
 
 QSlider::groove:horizontal {
-    height: 4px;
+    height: 5px;
     background-color: $bg_elevated;
-    border: 1px solid $border_subtle;
-    border-radius: 2px;
+    border-radius: 3px;
 }
 
 QSlider::handle:horizontal {
     background-color: $accent_primary;
-    border: 1px solid $accent_primary;
-    width: 14px;
-    height: 14px;
-    margin: -6px 0;
-    border-radius: 7px;
+    width: 15px;
+    height: 15px;
+    margin: -5px 0;
+    border-radius: 8px;
 }
 
 QProgressBar {
     background-color: $bg_recessed;
     border: 1px solid $border_subtle;
-    border-radius: $radius_sm;
+    border-radius: 8px;
     text-align: center;
     color: $text_primary;
-    height: 18px;
+    height: 16px;
+    font-size: $font_size_xs;
 }
 
 QProgressBar::chunk {
     background-color: $accent_primary;
-    border-radius: 4px;
+    border-radius: 7px;
 }
 
-/* --- ScrollBars --- */
+/* --- Thin, Minimal ScrollBars --- */
 QScrollBar:vertical {
     background-color: transparent;
-    width: 10px;
-    margin: 0px;
+    width: 8px;
+    margin: 2px 0px;
 }
 
 QScrollBar::handle:vertical {
     background-color: $scrollbar_thumb;
-    border-radius: 5px;
+    border-radius: 4px;
     min-height: 28px;
-    margin: 2px;
 }
 
 QScrollBar::handle:vertical:hover {
@@ -554,15 +573,14 @@ QScrollBar::handle:vertical:hover {
 
 QScrollBar:horizontal {
     background-color: transparent;
-    height: 10px;
-    margin: 0px;
+    height: 8px;
+    margin: 0px 2px;
 }
 
 QScrollBar::handle:horizontal {
     background-color: $scrollbar_thumb;
-    border-radius: 5px;
+    border-radius: 4px;
     min-width: 28px;
-    margin: 2px;
 }
 
 QScrollBar::handle:horizontal:hover {
@@ -577,12 +595,12 @@ QScrollBar::add-page, QScrollBar::sub-page {
     height: 0px;
 }
 
-/* --- ToolTips --- */
+/* --- Small, Elegant ToolTips --- */
 QToolTip {
-    background-color: $bg_elevated;
+    background-color: $bg_surface;
     color: $text_primary;
     border: 1px solid $border_strong;
-    padding: 5px 9px;
-    border-radius: $radius_sm;
-    font-size: $font_size_sm;
+    padding: 5px 10px;
+    border-radius: 8px;
+    font-size: $font_size_xs;
 }
