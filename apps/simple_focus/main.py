@@ -9,7 +9,16 @@ from datetime import datetime
 from pathlib import Path
 
 from PySide6.QtCore import QRectF, Qt, QTimer
-from PySide6.QtGui import QAction, QColor, QFont, QKeySequence, QPainter, QPaintEvent, QPen, QShortcut
+from PySide6.QtGui import (
+    QAction,
+    QColor,
+    QFont,
+    QKeySequence,
+    QPainter,
+    QPaintEvent,
+    QPen,
+    QShortcut,
+)
 from PySide6.QtWidgets import (
     QButtonGroup,
     QComboBox,
