@@ -146,7 +146,7 @@ def test_simple_writer_window_pagination_outline_and_save(
     reopened = SimpleWriterWindow()
     qtbot.addWidget(reopened)
     assert reopened.load_file(target_docx) is True
-    assert reopened._doc_title_input.text() == "product roadmap"
+    assert reopened._doc_title_input.text() == "Product Roadmap"
     assert "Phase 3 Architecture" in reopened._editor.toPlainText()
     assert "final token." in reopened._editor.toPlainText()
     reopened.close()
