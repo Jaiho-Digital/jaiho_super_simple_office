@@ -129,6 +129,19 @@ _APP_EXCLUDES: dict[str, tuple[str, ...]] = {
         "comtypes",
         "icalendar",
     ),
+    "simple_chat": (
+        "cv2",
+        "fitz",
+        "pypdf",
+        "docx",
+        "openpyxl",
+        "pptx",
+        "formulas",
+        "matplotlib",
+        "pytesseract",
+        "PIL",
+        "icalendar",
+    ),
 }
 
 
