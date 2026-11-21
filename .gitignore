@@ -1,0 +1,29 @@
+# Virtual environments
+venv/
+.venv/
+env/
+
+# PyInstaller & Inno Setup build artifacts (publish .exe files in GitHub Releases, not Git commits)
+build/
+dist/
+*.spec
+
+# Python & tool caches
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Local runtime data & IDE files
+*.db
+*.db-wal
+*.db-shm
+*.log
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+*.exe
