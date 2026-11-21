@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import math
 from pathlib import Path
 
 from PySide6.QtCore import QModelIndex, QRectF, Qt
@@ -27,7 +26,6 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QFrame,
     QHBoxLayout,
-    QHeaderView,
     QInputDialog,
     QLabel,
     QLineEdit,
@@ -63,7 +61,6 @@ from core.ui.base_window import BaseWindow, bootstrap_application
 from core.ui.dialogs import ask_confirmation, show_error_dialog
 from core.ui.widgets import (
     CardFrame,
-    HorizontalDivider,
     StatusBadge,
     VerticalDivider,
     make_button,

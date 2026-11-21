@@ -12,7 +12,14 @@ from pathlib import Path
 from xml.etree import ElementTree as ET
 from xml.sax.saxutils import escape as xml_escape
 
-from PySide6.QtGui import QColor, QFont, QTextBlockFormat, QTextCharFormat, QTextCursor, QTextDocument
+from PySide6.QtGui import (
+    QColor,
+    QFont,
+    QTextBlockFormat,
+    QTextCharFormat,
+    QTextCursor,
+    QTextDocument,
+)
 
 from core.file_manager.file_ops import (
     FileOperationError,
